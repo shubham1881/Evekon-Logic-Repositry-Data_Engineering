@@ -1,0 +1,113 @@
+import boto3
+import json
+from operator import attrgetter
+from datetime import datetime, timedelta, timezone
+from dateutil.tz import tzutc, UTC
+import os
+
+env = os.environ['env']
+kdh_bucket = os.environ['bucket_name']
+Prefix =os.environ['prefix']
+
+
+list_two=[]
+s3 = boto3.resource('s3')
+s3_client = boto3.client('s3')
+
+def lambda_handler(event, context):
+    currentDate = datetime.now(timezone.utc) - timedelta(hours=2)
+    print ("Checking if we have received files in the last 2 hours ", currentDate)
+
+    bucket_name = kdh_bucket
+    bucket=s3.Bucket(bucket_name)
+    prefix=Prefix
+    list_folder(bucket_name,prefix)
+    kdh_paths=list_two
+    
+    for i in kdh_paths:
+            objs = s3.Bucket(kdh_bucket).objects.filter(Prefix=i)
+            print(objs)
+            print(i)
+            # sort the objects based on 'obj.last_modified'
+            sortedObjs = sorted(objs, key=attrgetter('last_modified'))
+            print(sortedObjs)
+            latest = sortedObjs.pop()
+            print(latest)
+            for object in s3.Bucket(kdh_bucket).objects.filter(Prefix=latest.key):
+                lastModifiedDate = object.last_modified
+                print("File Last Modified Time =", lastModifiedDate)
+                
+                currentDate = datetime.now(timezone.utc) - timedelta(hours=2)
+                print(currentDate)
+                
+                if lastModifiedDate < currentDate:
+                    
+                    complete_file_name = object.key.split('/')[-1]  # Extract the file name from the object key
+                    file_name = complete_file_name[:-15]
+                    print(f"We failed to receive {file_name} file in time")
+                    pace_alert_message = f"We failed to receive the {file_name} file in time."
+                    xyz_alert_message = f"We failed to receive the {file_name} file in time."
+                    TriggerSNS(pace_alert_message,xyz_alert_message,file_name, "Failure")
+                else:
+                    print("We are all set for this week")
+                    complete_file_name = object.key.split('/')[-1]  # Extract the file name from the object key
+                    file_name = complete_file_name[:-15]
+                    print("Notification sent for ",file_name)
+                    pace_alert_message = f"{file_name} Export file received successfully"
+                    TriggerSNS(pace_alert_message,None,file_name, "Success")
+    
+
+def list_folder(bucket_name,prefix):
+
+        resp = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=str(prefix), Delimiter='/')
+        print(resp)
+        forms = [x['Prefix'] for x in resp['CommonPrefixes']]
+        print(forms)
+        for f in forms:
+            print("inside")
+            prefix=str(f)
+            resp = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix, Delimiter='/')
+            if 'CommonPrefixes' in resp :
+                list_folder(bucket_name,f)
+                print(f"extended {resp}")
+            else :
+                if f not in list_two :
+                    list_two.append(f)
+                continue
+        
+
+#############################################################################################################################
+#############################################################################################################################
+        
+def TriggerSNS(pace_alert_message,xyz_alert_message=None,file_name=None, status=None):
+    client = boto3.client('sns')
+    x_alert = os.environ['x_alert_arn']
+    y_alert = os.environ['y_alert_arn']
+    
+    subject = f"Delta File Notification {env} - {status}: {file_name}"
+
+    if pace_alert_message:
+
+        response = client.publish(
+            
+            TargetArn=x_alert,
+            Message=pace_alert_message,
+            Subject=subject,
+            MessageStructure='string'
+        )
+
+    if xyz_alert_message:
+
+        response = client.publish(
+
+            TargetArn=y_alert,
+            Message=xyz_alert_message,
+            Subject=subject,
+            MessageStructure='string'
+        )
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps(response)
+    }
+ 
