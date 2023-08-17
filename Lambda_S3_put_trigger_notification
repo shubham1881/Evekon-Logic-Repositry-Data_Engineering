@@ -1,0 +1,49 @@
+import json
+import os 
+import boto3
+import urllib.parse
+
+
+
+
+def lambda_handler(event, context):
+    sns_topic_arn  = os.environ['ad_hoc_alert_arn']
+    env=os.environ['env']
+   
+
+
+
+
+    sns_client = boto3.client('sns')
+    bucket = event['Records'][0]['s3']['bucket']['name'] 
+    object_key = urllib.parse.unquote(event['Records'][0]['s3']['object']['key'])
+    print("Object uploaded to bucket: " + bucket) 
+    print("Filename (object key): " + object_key)
+    complete_file_name = object_key.split('/')[-1]
+    folder_name = object_key.split('/')[-2]
+    path1 = object_key.split('/')[:-1]
+    path='/'.join(path1)
+    
+    subject = f"{env} - Ad_hoc file uploaded in S3 at {bucket}  "
+    message = f'New Ad_hoc file uploaded at path :- {path} and file name :- {complete_file_name} .'
+    if 'temp' not in path:
+        response = sns_client.publish(
+            TopicArn=sns_topic_arn,
+            Message=message,
+            Subject=subject,
+            MessageStructure='string'
+        )
+
+
+
+
+        print("SNS notification sent with MessageId: " + response['MessageId'])
+
+
+
+
+    return {
+        'statusCode': 200,
+        'body': 'SNS notification sent successfully'
+    }
+ 
