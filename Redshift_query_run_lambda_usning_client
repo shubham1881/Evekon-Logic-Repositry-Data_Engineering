@@ -1,0 +1,37 @@
+import json
+import boto3
+import pandas as pd
+import datetime
+import os
+from datetime import datetime, date, time, timezone
+
+reg=os.environ['REG_PREFIX_NAME']
+APH_PREFIX_NAME= os.environ['APH_PREFIX_NAME']
+bucket_name = os.environ['BUCKET_NAME']
+prefix_name = os.environ['PREFIX_NAME']
+ 
+def redshift_query_execution(client,secret_details,query):
+    redshift_client = boto3.client('redshift-data')
+    response = client.execute_statement(
+        ClusterIdentifier='your redshift_cluster_id',
+        Database='your database name',
+        DbUser='your_username',
+        Sql=query
+    )
+    return response
+
+def lambda_handler(event, context):
+    
+    redshift_client = boto3.client('redshift-data')
+    print(redshift_client)
+    redshift_secret_details=get_secret_values(os.environ.get("redshift_secret_arn"))
+    print(redshift_secret_details)
+    response=redshift_query_execution(redshift_client,redshift_secret_details,"select * from table")
+    query_id = response['Id']
+    response = redshift_client.describe_statement(Id=query_id)
+    result_response = redshift_client.get_statement_result(Id=query_id)
+    column_metadata = result_response['ColumnMetadata']
+    records = result_response['Records']
+    print(records)
+    return response
+ 
