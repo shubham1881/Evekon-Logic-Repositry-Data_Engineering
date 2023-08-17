@@ -1,0 +1,99 @@
+import json
+import boto3
+import os
+#from send_email import *
+
+
+
+
+env = os.environ['env']
+vendor_1=os.environ['vendor_1']
+account_num_1=os.environ['account_num_1']
+user_name_1=os.environ['user_name_1']
+pass_1=os.environ['pass_1']
+subject_content=os.environ['subject_content']
+body_content=os.environ['body_content']
+salutation=os.environ['salutation']
+signature=os.environ['signature']
+
+
+
+
+def lambda_handler(event, context):
+    # List of recipients
+    destination_email= os.environ['destination_email'].split(',')
+    cc= os.environ['cc'].split(',')
+    source_email= os.environ['source_email']
+    #komodo_email(destination_email,source_email,cc)
+    Advi_email(destination_email,source_email,cc)
+    print('NEW FUN CALL',destination_email,source_email)
+
+
+
+
+
+
+
+def Advi_email(destination_email,source_email,cc):
+    print("new-emails",destination_email,source_email)
+    try:
+        client = boto3.client("ses")
+        subject = f"{subject_content} "
+        print(subject)
+        body = """ <html> <head><style>
+                    table {
+                          font-family: arial, sans-serif;
+                          border-collapse: collapse;
+                          width: 100%;
+                        }
+                        
+                        td, th {
+                          border: 1px solid #dddddd;
+                          text-align: left;
+                          padding: 8px;
+                        }
+
+
+
+
+                    </style></head> <body><h3><p> <centre>  *** PASSWORD RESET REMINDER *** </centre></h3>
+                       <br> Hi"""+" "+str(salutation)+ """,</br>
+        
+                       <br/>"""+str(body_content)+"""</br>
+                       <br></br>
+                       <table>
+                              <tr>
+                                <td><b>Vendor</b></td>
+                                <td>"""+str(vendor_1) + """</td>
+                              </tr>
+                              <tr>
+                                <td><b>Account Number</b></td>
+                                <td>"""+str(account_num_1) + """</td>
+                              </tr>
+                              <tr>
+                                <td><b>User Name</b></td>
+                                <td>"""+str(user_name_1) + """</td>
+                              </tr>
+                              <tr>
+                                <td><b>Password</b></td>
+                                <td>"""+str(pass_1) + """</td>
+                              </tr>
+                        </table>
+                        
+                       <br>Kind Regards,</br>
+                        """+str(signature)+"""
+                    </p> </body> </html> """
+        message = {"Subject": {"Data": subject}, "Body": {"Html": {"Data": body}}}
+        response = client.send_email(Source = source_email,
+                   Destination = {"ToAddresses": destination_email,'CcAddresses': cc}, Message = message)
+
+
+
+
+    except Exception as e:
+        response ="Error :"+ str(e)             
+        return response
+        return {'response':response,
+        'statusCode': 200,
+        'body': json.dumps('Email sent successfully!')
+        }
