@@ -8,7 +8,7 @@ import ast
 
 
 mwaa_env_name = 'env_name'
-#mwaa_cli_command = 'dags list-runs --dag kdh_source_to_curated_ebs_pipeline --start-date 2023-09-04'
+
 mwaa_cli_command=f'dags list-runs --dag dag_name'
 client = boto3.client('mwaa')
 
@@ -46,11 +46,10 @@ def lambda_handler(event, context):
     data = StringIO(s)
 
     df=pd.read_csv(data, sep='|')
-    #df=df[0]
-    #print(f"here is df zero {df[0]}")
+    
 
     s3 = boto3.resource('s3')
-    bucket_name = 'gilead-kdh-dev-us-west-2-raw'
+    bucket_name = 'bucket_name'
     prefix=f"Testing_dag_status/status.csv"
     csv_buffer=StringIO()
     df.to_csv(csv_buffer,index=True)
